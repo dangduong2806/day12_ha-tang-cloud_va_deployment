@@ -114,10 +114,10 @@ python app.py
 
 ###  Checkpoint 1
 
-- [ ] Hiểu tại sao hardcode secrets là nguy hiểm
-- [ ] Biết cách dùng environment variables
-- [ ] Hiểu vai trò của health check endpoint
-- [ ] Biết graceful shutdown là gì
+- [x] Hiểu tại sao hardcode secrets là nguy hiểm
+- [x] Biết cách dùng environment variables
+- [x] Hiểu vai trò của health check endpoint
+- [x] Biết graceful shutdown là gì
 
 ---
 
@@ -143,10 +143,12 @@ cd ../../02-docker/develop
 
 **Nhiệm vụ:** Đọc `Dockerfile` và trả lời:
 
-1. Base image là gì?
-2. Working directory là gì?
-3. Tại sao COPY requirements.txt trước?
-4. CMD vs ENTRYPOINT khác nhau thế nào?
+1. Base image là gì? FROM python:3.11  
+2. Working directory là gì? WORKDIR /app  
+3. Tại sao COPY requirements.txt trước?  
+Việc copy file requirements.txt và chạy pip install trước khi copy toàn bộ mã nguồn (app.py) là để tận dụng cơ chế Docker layer cache (Bộ nhớ đệm theo lớp của Docker).  
+4. CMD vs ENTRYPOINT khác nhau thế nào?  
+Dùng ENTRYPOINT cho phần lệnh bắt buộc phải chạy. Dùng CMD cho phần tham số có thể thay đổi linh hoạt.
 
 ###  Exercise 2.2: Build và run
 
@@ -163,7 +165,7 @@ curl http://localhost:8000/ask -X POST \
   -d '{"question": "What is Docker?"}'
 ```
 
-**Quan sát:** Image size là bao nhiêu?
+**Quan sát:** Image size là bao nhiêu? -> 1.66GB
 ```bash
 docker images my-agent:develop
 ```
@@ -175,9 +177,12 @@ cd ../production
 ```
 
 **Nhiệm vụ:** Đọc `Dockerfile` và tìm:
-- Stage 1 làm gì?
-- Stage 2 làm gì?
-- Tại sao image nhỏ hơn?
+- Stage 1 làm gì?  
+Tải và biên dịch (compile) tất cả các thư viện cần thiết  
+- Stage 2 làm gì?  
+Mang lên Cloud để chạy (Deploy).
+- Tại sao image nhỏ hơn?  
+Multi-stage build -> Image Loại bỏ "Rác công nghệ" (Build Tools).
 
 Build và so sánh:
 ```bash
@@ -208,10 +213,10 @@ curl http://localhost/ask -X POST \
 
 ###  Checkpoint 2
 
-- [ ] Hiểu cấu trúc Dockerfile
-- [ ] Biết lợi ích của multi-stage builds
-- [ ] Hiểu Docker Compose orchestration
-- [ ] Biết cách debug container (`docker logs`, `docker exec`)
+- [x] Hiểu cấu trúc Dockerfile
+- [x] Biết lợi ích của multi-stage builds
+- [x] Hiểu Docker Compose orchestration
+- [x] Biết cách debug container (`docker logs`, `docker exec`)
 
 ---
 
