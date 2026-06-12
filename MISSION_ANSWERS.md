@@ -1,8 +1,8 @@
 #  Delivery Checklist — Day 12 Lab Submission
 
-> **Student Name:** _________________________  
-> **Student ID:** _________________________  
-> **Date:** _________________________
+> **Student Name:** Nguyễn Đăng Dương 
+> **Student ID:** 2A202600678
+> **Date:** 12/06/2026
 
 ---
 
@@ -20,15 +20,33 @@ Create a file `MISSION_ANSWERS.md` with your answers to all exercises:
 ## Part 1: Localhost vs Production
 
 ### Exercise 1.1: Anti-patterns found
-1. [Your answer]
-2. [Your answer]
+1. # ❌ Vấn đề 1: API key hardcode trong code
+# Nếu push lên GitHub → key bị lộ ngay lập tức
+
+2. # ❌ Vấn đề 2: Không có config management
+
+3. # ❌ Vấn đề 3: Print thay vì proper logging
+
+4. # ❌ Vấn đề 4: Không có health check endpoint
+# Nếu agent crash, platform không biết để restart
+
+5. # ❌ Vấn đề 5: Port cố định — không đọc từ environment
+# Trên Railway/Render, PORT được inject qua env var
 ...
 
 ### Exercise 1.3: Comparison table
 | Feature | Develop | Production | Why Important? |
 |---------|---------|------------|----------------|
-| Config  | ...     | ...        | ...            |
-...
+| Health check  | Không có. Nếu ứng dụng bị treo hoặc crash ngầm, hệ thống bên ngoài hoàn toàn mù tịt.     | Có Endpoint chuyên biệt như /health (Liveness probe) và /ready (Readiness probe).        | Tự động phục hồi: Các nền tảng Cloud (Railway, Render, Kubernetes) dựa vào đây để biết khi nào ứng dụng bị lỗi để tự động khởi động lại (restart) container, hoặc chặn không gửi request vào khi app đang bận khởi tạo.           |
+
+| Logging  | Dùng lệnh print() thủ công, ghi log thô sơ và vô tình in cả thông tin nhạy cảm (Secret Key) ra màn hình.     | Sử dụng Structured Logging (JSON) qua module logging của Python. Tuyệt đối không log dữ liệu nhạy cảm.        | Giám sát diện rộng: Khi lên Cloud, log dạng JSON giúp các hệ thống quản lý log tập trung (như ELK, Grafana Loki, Datadog) dễ dàng tìm kiếm, phân tích cú pháp, vẽ biểu đồ lỗi và kích hoạt cảnh báo (alert) tự động.         |
+
+| Config & Secrets  | Hardcode trực tiếp các chuỗi bí mật như API Key, URL Database vào trong mã nguồn.     | Sử dụng Biến môi trường (Env vars) kết hợp với thư viện như pydantic-settings hoặc python-dotenv. | Bảo mật & Linh hoạt: Giúp không bị lộ private key khi push code lên GitHub. Dễ dàng thay đổi cấu hình giữa các môi trường Dev/Staging/Prod mà không cần sửa một dòng code nào.|
+
+| Shutdown & Network | Tắt đột ngột. Cấu hình cứng host="localhost", port=8000, và bật reload=True. | Graceful Shutdown (Tắt an toàn) qua việc bắt tín hiệu SIGTERM. Đổi host="0.0.0.0", port nhận động từ môi trường (os.getenv("PORT")). | Không làm đứt quãng người dùng: 1. 0.0.0.0 là bắt buộc để Docker có thể mở cổng kết nối ra ngoài. 2. Port động giúp tương thích với cơ chế tự cấp port của Cloud. 3. Tắt an toàn giúp ứng dụng xử lý nốt các request đang chạy dở trước khi container chính thức đóng cửa khi bạn deploy bản cập nhật mới.|
+
+
+
 
 ## Part 2: Docker
 

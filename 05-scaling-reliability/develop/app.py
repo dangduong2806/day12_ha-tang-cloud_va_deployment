@@ -22,11 +22,12 @@ import os
 import time
 import signal
 import logging
+import sys
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 import uvicorn
 from utils.mock_llm import ask
 
@@ -37,6 +38,45 @@ START_TIME = time.time()
 _is_ready = False
 _in_flight_requests = 0  # đếm số request đang xử lý
 
+
+from fastapi.responses import JSONResponse
+import redis
+import json
+# ví dụ Postgres client
+# import psycopg2
+# db = psycopg2.connect(os.getenv(...))
+
+# Initialize Redis client from environment, but tolerate missing Redis (for exercises)
+try:
+    REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+    REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+    r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+    # quick ping to verify connection
+    r.ping()
+    logger.info(f"Connected to Redis at {REDIS_HOST}:{REDIS_PORT}")
+except Exception:
+    r = None
+    logger.warning("Redis not available; conversation history disabled")
+
+
+def get_history(user_id: str, limit: int = 50):
+    if not r:
+        return []
+    try:
+        return r.lrange(f"history:{user_id}", 0, limit - 1)
+    except Exception:
+        logger.exception("Error reading history from Redis")
+        return []
+
+
+def append_history(user_id: str, entry: str, max_len: int = 100):
+    if not r:
+        return
+    try:
+        r.lpush(f"history:{user_id}", entry)
+        r.ltrim(f"history:{user_id}", 0, max_len - 1)
+    except Exception:
+        logger.exception("Error appending history to Redis")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -91,10 +131,35 @@ def root():
 
 
 @app.post("/ask")
-async def ask_agent(question: str):
+async def ask_agent(request: Request):
+    """Endpoint now expects JSON: {"user_id":"...","question":"..."}
+    Stores conversation history in Redis (stateless design).
+    """
+    body = await request.json()
+    user_id = body.get("user_id")
+    question = body.get("question")
+
+    if not user_id or not question:
+        raise HTTPException(status_code=422, detail="user_id and question are required")
+
     if not _is_ready:
         raise HTTPException(503, "Agent not ready")
-    return {"answer": ask(question)}
+
+    # Load history from Redis (stateless)
+    history = get_history(user_id)
+
+    # Call LLM (mock) — in real app we'd pass history to model
+    answer = ask(question)
+
+    # Append QA pair to Redis history as JSON string
+    entry = json.dumps({
+        "question": question,
+        "answer": answer,
+        "ts": datetime.now(timezone.utc).isoformat(),
+    })
+    append_history(user_id, entry)
+
+    return {"answer": answer, "history_count": len(history) + 1}
 
 
 # ──────────────────────────────────────────────────────────
@@ -114,34 +179,35 @@ def health():
     - uptime: seconds
     - version: để biết đang chạy version nào
     """
-    uptime = round(time.time() - START_TIME, 1)
+    # uptime = round(time.time() - START_TIME, 1)
 
-    # Kiểm tra dependencies quan trọng
-    checks = {}
+    # # Kiểm tra dependencies quan trọng
+    # checks = {}
 
-    # Check memory (ví dụ đơn giản)
-    try:
-        import psutil
-        mem = psutil.virtual_memory()
-        checks["memory"] = {
-            "status": "ok" if mem.percent < 90 else "degraded",
-            "used_percent": mem.percent,
-        }
-    except ImportError:
-        checks["memory"] = {"status": "ok", "note": "psutil not installed"}
+    # # Check memory (ví dụ đơn giản)
+    # try:
+    #     import psutil
+    #     mem = psutil.virtual_memory()
+    #     checks["memory"] = {
+    #         "status": "ok" if mem.percent < 90 else "degraded",
+    #         "used_percent": mem.percent,
+    #     }
+    # except ImportError:
+    #     checks["memory"] = {"status": "ok", "note": "psutil not installed"}
 
-    overall_status = "ok" if all(
-        v.get("status") == "ok" for v in checks.values()
-    ) else "degraded"
+    # overall_status = "ok" if all(
+    #     v.get("status") == "ok" for v in checks.values()
+    # ) else "degraded"
 
-    return {
-        "status": overall_status,
-        "uptime_seconds": uptime,
-        "version": "1.0.0",
-        "environment": os.getenv("ENVIRONMENT", "development"),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "checks": checks,
-    }
+    # return {
+    #     "status": overall_status,
+    #     "uptime_seconds": uptime,
+    #     "version": "1.0.0",
+    #     "environment": os.getenv("ENVIRONMENT", "development"),
+    #     "timestamp": datetime.now(timezone.utc).isoformat(),
+    #     "checks": checks,
+    # }
+    return {"status": "ok"}
 
 
 @app.get("/ready")
@@ -157,15 +223,27 @@ def ready():
     - Đang shutdown
     - Database/dependencies chưa connect
     """
-    if not _is_ready:
-        raise HTTPException(
+    # if not _is_ready:
+    #     raise HTTPException(
+    #         status_code=503,
+    #         detail="Agent not ready. Check back in a few seconds.",
+    #     )
+    # return {
+    #     "ready": True,
+    #     "in_flight_requests": _in_flight_requests,
+    # }
+    try:
+        # Check Redis
+        r.ping()
+        # Check database
+        db.execute("SELECT 1")
+        return {"status": "ready"}
+    except:
+        return JSONResponse(
             status_code=503,
-            detail="Agent not ready. Check back in a few seconds.",
+            content={"status": "not ready"}
         )
-    return {
-        "ready": True,
-        "in_flight_requests": _in_flight_requests,
-    }
+
 
 
 # ──────────────────────────────────────────────────────────
@@ -180,7 +258,56 @@ def handle_sigterm(signum, frame):
     uvicorn bắt SIGTERM tự động và gọi lifespan shutdown.
     Hàm này để log thêm thông tin.
     """
-    logger.info(f"Received signal {signum} — uvicorn will handle graceful shutdown")
+    logger.info(f"Received signal {signum} — initiating graceful shutdown handler")
+
+    # 1) Stop accepting new requests
+    try:
+        global _is_ready
+        _is_ready = False
+    except Exception:
+        pass
+
+    # 2) Wait for in-flight requests to finish (max 30s)
+    timeout = 30
+    waited = 0
+    while _in_flight_requests > 0 and waited < timeout:
+        logger.info(f"Waiting for {_in_flight_requests} in-flight requests to finish...")
+        time.sleep(1)
+        waited += 1
+
+    if _in_flight_requests > 0:
+        logger.warning(f"Shutdown timeout reached; {_in_flight_requests} requests still in-flight")
+    else:
+        logger.info("All in-flight requests completed")
+
+    # 3) Close external connections if present
+    try:
+        if 'r' in globals() and getattr(r, 'close', None):
+            try:
+                r.close()
+                logger.info("Closed Redis connection")
+            except Exception:
+                logger.exception("Error closing Redis connection")
+    except Exception:
+        logger.debug("No Redis client to close")
+
+    try:
+        if 'db' in globals() and getattr(db, 'close', None):
+            try:
+                db.close()
+                logger.info("Closed DB connection")
+            except Exception:
+                logger.exception("Error closing DB connection")
+    except Exception:
+        logger.debug("No DB client to close")
+
+    # 4) Exit process
+    logger.info("Exiting process now")
+    try:
+        sys.exit(0)
+    except SystemExit:
+        # ensure process terminates
+        os._exit(0)
 
 
 signal.signal(signal.SIGTERM, handle_sigterm)

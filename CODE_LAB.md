@@ -304,7 +304,10 @@ cd ../render
 6. Set environment variables trong dashboard
 7. Deploy!
 
-**Nhiệm vụ:** So sánh `render.yaml` với `railway.toml`. Khác nhau gì?
+**Nhiệm vụ:** So sánh `render.yaml` với `railway.toml`. Khác nhau gì?  
+Dùng railway.toml khi muốn triển khai nhanh một dịch vụ cụ thể trên Railway, ưa thích sự đơn giản và quản lý các dịch vụ đi kèm qua giao diện kéo thả của Railway.  
+
+Dùng render.yaml khi muốn định nghĩa một cụm hạ tầng phức tạp (App + DB + Cache), giúp người khác chỉ cần nhấn 1 nút "Deploy to Render" là tự động dựng lại y hệt toàn bộ hệ thống của bạn mà không cần bấm tay cấu hình từng chút một.
 
 ###  Exercise 3.3: (Optional) GCP Cloud Run (15 phút)
 
@@ -318,10 +321,10 @@ cd ../production-cloud-run
 
 ###  Checkpoint 3
 
-- [ ] Deploy thành công lên ít nhất 1 platform
-- [ ] Có public URL hoạt động
-- [ ] Hiểu cách set environment variables trên cloud
-- [ ] Biết cách xem logs
+- [x] Deploy thành công lên ít nhất 1 platform
+- [x] Có public URL hoạt động
+- [x] Hiểu cách set environment variables trên cloud
+- [x] Biết cách xem logs
 
 ---
 

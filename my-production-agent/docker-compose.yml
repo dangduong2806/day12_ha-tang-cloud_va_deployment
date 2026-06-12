@@ -1,0 +1,24 @@
+services:
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - AGENT_API_KEY=my-final-secret-key
+    depends_on:
+      - redis
+
+  redis:
+    image: public.ecr.aws/docker/library/redis:alpine
+    ports:
+      - "6379:6379"
+
+  nginx:
+    image: public.ecr.aws/nginx/nginx:latest
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - agent
