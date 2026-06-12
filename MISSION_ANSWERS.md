@@ -51,20 +51,23 @@ Create a file `MISSION_ANSWERS.md` with your answers to all exercises:
 ## Part 2: Docker
 
 ### Exercise 2.1: Dockerfile questions
-1. Base image: [Your answer]
-2. Working directory: [Your answer]
-...
+1. Base image: FROM python:3.11
+2. Working directory: WORKDIR /app 
+3. Tại sao COPY requirements.txt trước?  
+Việc copy file requirements.txt và chạy pip install trước khi copy toàn bộ mã nguồn (app.py) là để tận dụng cơ chế Docker layer cache (Bộ nhớ đệm theo lớp của Docker). 
+4. CMD vs ENTRYPOINT khác nhau thế nào?  
+Dùng ENTRYPOINT cho phần lệnh bắt buộc phải chạy. Dùng CMD cho phần tham số có thể thay đổi linh hoạt.
 
 ### Exercise 2.3: Image size comparison
-- Develop: [X] MB
-- Production: [Y] MB
-- Difference: [Z]%
+- Develop: [1.66] GB
+- Production: [236] MB
+- Difference: [1.43] GB
 
 ## Part 3: Cloud Deployment
 
 ### Exercise 3.1: Railway deployment
-- URL: https://your-app.railway.app
-- Screenshot: [Link to screenshot in repo]
+- URL: https://ai-agent-w9u9.onrender.com/
+- Screenshot: ![railway_deployment](day12_ha-tang-cloud_va_deployment/railway_deployment.png)
 
 ## Part 4: API Security
 
