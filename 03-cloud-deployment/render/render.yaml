@@ -46,6 +46,10 @@ services:
     name: agent-cache
     plan: free
     maxmemoryPolicy: allkeys-lru
+    #FIX LỖI: Thêm cấu hình bảo mật IP cho Redis ở đây
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: Allow connections from anywhere
 
 # ============================================================
 # Cách deploy:
